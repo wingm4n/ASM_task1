@@ -1,3 +1,70 @@
+section .payload progbits alloc exec write
+global factor
+; uint factor(uint n)
+; return n!
+factor:
+    push    ebp
+    mov     ebp, esp
+
+    push    ebx
+    push    esi
+    push    edi
+
+    mov     eax, 1
+    mov     ecx, 2
+    mov     ebx, dword [ebp + 8]
+.loop:
+    cmp     ecx, ebx
+    ja      .next
+
+    mul     ecx
+
+    inc     ecx
+    jmp     .loop
+
+.next:
+    pop     edi
+    pop     esi
+    pop     ebx
+
+    pop     ebp
+    ret
+
+global fibb
+; uint fibb(uint n)
+; return n-th fibonacci number
+fibb:
+    push    ebp
+    mov     ebp, esp
+
+    push    ebx
+    push    esi
+    push    edi
+
+    mov     ebx, dword [ebp + 8]
+    mov     eax, 0
+    mov     edx, 1
+    mov     ecx, 0
+.loop:
+    cmp     ecx, ebx
+    jae     .next
+
+    mov     esi, edx
+    add     edx, eax
+    mov     eax, esi
+
+    inc     ecx
+    jmp     .loop
+
+.next:
+    pop     edi
+    pop     esi
+    pop     ebx
+
+    pop     ebp
+    ret
+
+
 section .data
     s db "Open text to pack", 0
     key db "Random key", 0
@@ -66,71 +133,6 @@ pack:
 
     inc     ebx
     inc     eax
-    jmp     .loop
-
-.next:
-    pop     edi
-    pop     esi
-    pop     ebx
-
-    pop     ebp
-    ret
-
-global factor
-; uint factor(uint n)
-; return n!
-factor:
-    push    ebp
-    mov     ebp, esp
-
-    push    ebx
-    push    esi
-    push    edi
-
-    mov     eax, 1
-    mov     ecx, 2
-    mov     ebx, dword [ebp + 8]
-.loop:
-    cmp     ecx, ebx
-    ja      .next
-
-    mul     ecx
-
-    inc     ecx
-    jmp     .loop
-
-.next:
-    pop     edi
-    pop     esi
-    pop     ebx
-
-    pop     ebp
-    ret
-
-global fibb
-; uint fibb(uint n)
-; return n-th fibonacci number
-fibb:
-    push    ebp
-    mov     ebp, esp
-
-    push    ebx
-    push    esi
-    push    edi
-
-    mov     ebx, dword [ebp + 8]
-    mov     eax, 0
-    mov     edx, 1
-    mov     ecx, 0
-.loop:
-    cmp     ecx, ebx
-    jae     .next
-
-    mov     esi, edx
-    add     edx, eax
-    mov     eax, esi
-
-    inc     ecx
     jmp     .loop
 
 .next:
