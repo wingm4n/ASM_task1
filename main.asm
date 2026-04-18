@@ -65,9 +65,15 @@ fibb:
     ret
 
 
+section .status progbits alloc write
+    mode db 0
+
 section .data
-    s db "Open text to pack", 0
-    key db "Random key", 0
+    proc_self_exe db "/proc/self/exe", 0
+    mode0_ok db "Packed successfully!", 0
+    mode0_err db "Error occurred while packing", 0
+    mode1_ok db "Dynamically unpacked and executed successfully!", 0
+    mode1_err db "Error occurred while unpacking or executing", 0
 
 global main
 section .text
@@ -75,30 +81,47 @@ extern io_print_udec, io_print_string, io_newline
 main:
     mov     ebp, esp
 
-    push    10
-    push    key
-    push    15
-    push    s
-    call    pack
-    add     esp, 16
+    mov     al, byte [mode]
+    test    al, al
+    jz      .mode0
 
-    mov     eax, s
+.mode1:
+    call    target_exec
+    test    eax, eax
+    jz      .print_ok1
+    mov     eax, mode1_err
+    call    io_print_string
+    call    io_newline
+    jmp     .quit
+.print_ok1:
+    mov     eax, mode1_ok
+    call    io_print_string
+    call    io_newline
+    jmp     .quit
+.mode0:
+    call    first_exec
+    test    eax, eax
+    jz      .print_ok0
+    mov     eax, mode0_err
+    call    io_print_string
+    call    io_newline
+    jmp     .quit
+.print_ok0:
+    mov     eax, mode0_ok
     call    io_print_string
     call    io_newline
 
-    push    10
-    push    key
-    push    15
-    push    s
-    call    pack
-    add     esp, 16
-
-    mov     eax, s
-    call    io_print_string
-    call    io_newline
-
+.quit:
     xor     eax, eax
     ret 
+
+global targetExec
+target_exec:
+    ret
+
+global firstExec
+first_exec:
+    ret
 
 global pack
 ; void xor(char* buf, size_t size, const char* key, size_t key_size)
