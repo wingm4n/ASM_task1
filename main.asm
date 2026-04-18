@@ -1,13 +1,33 @@
+section .data
+    s db "Open text to pack", 0
+    key db "Random key", 0
+
 global main
 section .text
 extern io_print_udec, io_print_string, io_newline
 main:
     mov     ebp, esp
 
-    push    dword 12
-    call    fibb
-    add     esp, 4
-    call    io_print_udec
+    push    10
+    push    key
+    push    15
+    push    s
+    call    pack
+    add     esp, 16
+
+    mov     eax, s
+    call    io_print_string
+    call    io_newline
+
+    push    10
+    push    key
+    push    15
+    push    s
+    call    pack
+    add     esp, 16
+
+    mov     eax, s
+    call    io_print_string
     call    io_newline
 
     xor     eax, eax
@@ -40,8 +60,8 @@ pack:
 .skip:
 
     push    ecx
-    mov     ecx, dword [edi + eax]
-    xor     dword [esi + ebx], ecx
+    mov     cl, byte [edi + eax]
+    xor     byte [esi + ebx], cl
     pop     ecx
 
     inc     ebx
@@ -49,22 +69,6 @@ pack:
     jmp     .loop
 
 .next:
-    pop     edi
-    pop     esi
-    pop     ebx
-
-    pop     ebp
-    ret
-
-global unpack
-unpack:
-    push    ebp
-    mov     ebp, esp
-
-    push    ebx
-    push    esi
-    push    edi
-
     pop     edi
     pop     esi
     pop     ebx
