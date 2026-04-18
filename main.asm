@@ -75,6 +75,10 @@ section .data
     mode1_ok db "Dynamically unpacked and executed successfully!", 0
     mode1_err db "Error occurred while unpacking or executing", 0
 
+section .bss
+    exe_path_buf    resb 256          ; buffer for executable path
+    new_path_buf    resb 256          ; buffer for new file path
+
 global main
 section .text
 extern io_print_udec, io_print_string, io_newline
@@ -121,6 +125,124 @@ target_exec:
 
 global firstExec
 first_exec:
+    push    ebp
+    mov     ebp, esp
+    push    ebx
+    push    esi
+    push    edi
+
+    ; GET PATH TO ELF
+    mov     eax, 85 ; sys_readlink
+    mov     ebx, proc_self_exe ; pathname
+    mov     ecx, exe_path_buf ; buffer
+    mov     edx, 255 ; bufsiz (leave room for null)
+    int     0x80
+
+    test    eax, eax
+    js      .error_exit ; eax < 0 => error
+
+    mov     ecx, eax
+.loop:
+    mov     dl, byte [exe_path_buf + ecx]
+    mov     byte [new_path_buf + ecx], dl
+    loop    .loop
+
+    mov     byte [new_path_buf + eax], '2' ; new filename main2
+    mov     byte [exe_path_buf + eax], 0
+    inc     eax
+    mov     byte [new_path_buf + eax], 0
+    mov     byte [new_path_buf], '/'
+
+    ; OPEN ELF FOR READING, NEW ELF FOR WRITING
+    mov     eax, 5                       ; sys_open
+    mov     ebx, exe_path_buf            ; original executable path
+    mov     ecx, 0                       ; O_RDONLY
+    int     0x80
+    
+    test    eax, eax
+    js      .error_exit
+    mov     esi, eax                     ; save source fd in esi
+
+    mov     eax, 5                       ; sys_open
+    mov     ebx, new_path_buf            ; new file path
+    mov     ecx, 0x241                   ; O_WRONLY | O_CREAT | O_TRUNC
+    mov     edx, 0o755                   ; rwxr-xr-x
+    int     0x80
+    
+    test    eax, eax
+    js      .close_source_error
+    mov     edi, eax                     ; save dest fd in edi
+
+    ; Copy loop (read from source, write to dest)
+.copy_loop:
+    ; Read chunk from source
+    mov     eax, 3                       ; sys_read
+    mov     ebx, esi                     ; source fd
+    mov     ecx, buffer                  ; temp buffer
+    mov     edx, 4096                    ; chunk size (4KB)
+    int     0x80
+    
+    test    eax, eax
+    jz      .copy_done                   ; eax=0 means EOF
+    js      .copy_error                  ; eax<0 means error
+    
+    ; Write chunk to destination
+    mov     edx, eax                     ; bytes to write
+    mov     eax, 4                       ; sys_write
+    mov     ebx, edi                     ; dest fd
+    mov     ecx, buffer                  ; same buffer
+    int     0x80
+    
+    test    eax, eax
+    js      .copy_error
+    jmp     .copy_loop
+
+.copy_done:
+    ; Close both files
+    mov     eax, 6                       ; sys_close
+    mov     ebx, esi
+    int     0x80
+    
+    mov     eax, 6
+    mov     ebx, edi
+    int     0x80
+    jmp     .exit
+
+    ; mov     eax, exe_path_buf
+    ; call    io_print_string
+    ; call    io_newline
+    ; mov     eax, new_path_buf
+    ; call    io_print_string
+    ; call    io_newline
+
+.copy_error:
+    ; Close files then error
+    push eax
+    mov eax, 6
+    mov ebx, esi
+    int 0x80
+    mov eax, 6
+    mov ebx, edi
+    int 0x80
+    pop eax
+    jmp  .error_exit
+
+.close_source_error:
+    mov eax, 6
+    mov ebx, esi
+    int 0x80
+    jmp  .error_exit
+
+
+    mov     eax, 0
+    jmp     .exit    
+.error_exit:
+    mov     eax, 1
+.exit:
+    pop     edi
+    pop     esi
+    pop     ebx
+    pop     ebp
     ret
 
 global pack
@@ -165,3 +287,6 @@ pack:
 
     pop     ebp
     ret
+
+section .bss
+    buffer  resb 4096
