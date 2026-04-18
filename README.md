@@ -1,6 +1,10 @@
 # ASM_task1
 Additional task #1, asm course. HSE SE 2026
 
+Note: the program contains no malicious code, actually. 
+It applies XOR cipher to payload section when executed first time;
+after that, it unpacks the section at runtime and calls hidden functions.
+
 # Light malware
 
 Реализовать программу на языке ассемблера, выполняющую самораспаковку.
