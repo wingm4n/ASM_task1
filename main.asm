@@ -1,4 +1,5 @@
 section .payload progbits alloc exec write
+payload:
 global factor
 ; uint factor(uint n)
 ; return n!
@@ -74,6 +75,9 @@ section .data
     mode0_err db "Error occurred while packing", 0
     mode1_ok db "Dynamically unpacked and executed successfully!", 0
     mode1_err db "Error occurred while unpacking or executing", 0
+    greet db "Please enter a small number n: ", 0
+    s_factor db "n! = ", 0
+    s_fibb db "n-th Fibonacci number : ", 0
 
 section .bss
     exe_path_buf    resb 256          ; buffer for executable path
@@ -81,7 +85,7 @@ section .bss
 
 global main
 section .text
-extern io_print_udec, io_print_string, io_newline
+extern io_print_udec, io_get_udec, io_print_string, io_newline
 main:
     mov     ebp, esp
 
@@ -123,6 +127,53 @@ global targetExec
 target_exec:
     push    ebp
     mov     ebp, esp
+    push    ebx
+    push    esi
+    push    edi  
+
+    mov     eax, greet
+    call    io_print_string
+
+    call    io_get_udec
+    mov     ebx, eax
+
+    ; UNPACK payload
+    push    512
+    push    main
+    push    75
+    push    payload
+    call    pack
+    add     esp, 16
+
+    ; EXECUTE payload
+
+    mov     eax, s_factor
+    call    io_print_string
+
+    push    ebx
+    call    factor
+    add     esp, 4
+    call    io_print_udec
+    call    io_newline
+
+    mov     eax, s_fibb
+    call    io_print_string
+
+    push    ebx
+    call    fibb
+    add     esp, 4
+    call    io_print_udec
+    call    io_newline
+    call    io_newline
+
+    xor     eax, eax
+    jmp     .exit
+.error_exit:
+    mov     eax, -1
+.exit: 
+    pop     edi
+    pop     esi
+    pop     ebx
     pop     ebp
     ret
 
@@ -200,7 +251,7 @@ first_exec:
     js      .copy_error
 
     inc     dword [esp]
-    cmp     dword [esp], 12485         ; HARDCODED - payload addr in ELF
+    cmp     dword [esp], 12548           ; HARDCODED - payload addr in ELF
     jae     .next
     jmp     .copy_loop_till_payload
 
@@ -323,10 +374,10 @@ first_exec:
     jmp  .error_exit
 
 
-    mov     eax, 0
+    xor     eax, eax
     jmp     .exit    
 .error_exit:
-    mov     eax, 1
+    mov     eax, -1
 .exit:
     pop     edi
     pop     esi
