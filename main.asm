@@ -6,7 +6,6 @@ global factor
 factor:
     push    ebp
     mov     ebp, esp
-
     push    ebx
     push    esi
     push    edi
@@ -27,7 +26,6 @@ factor:
     pop     edi
     pop     esi
     pop     ebx
-
     pop     ebp
     ret
 
@@ -37,7 +35,6 @@ global fibb
 fibb:
     push    ebp
     mov     ebp, esp
-
     push    ebx
     push    esi
     push    edi
@@ -61,7 +58,6 @@ fibb:
     pop     edi
     pop     esi
     pop     ebx
-
     pop     ebp
     ret
 
@@ -189,7 +185,7 @@ first_exec:
     mov     eax, 85 ; sys_readlink
     mov     ebx, proc_self_exe ; pathname
     mov     ecx, exe_path_buf ; buffer
-    mov     edx, 255 ; bufsiz (leave room for null)
+    mov     edx, 255 ; bufsiz
     int     0x80
 
     test    eax, eax
@@ -346,7 +342,6 @@ first_exec:
     mov     eax, 6
     mov     ebx, edi
     int     0x80
-    jmp     .exit
 
     ; mov     eax, exe_path_buf
     ; call    io_print_string
@@ -354,6 +349,16 @@ first_exec:
     ; mov     eax, new_path_buf
     ; call    io_print_string
     ; call    io_newline
+
+    ; RENAME - e.g. replace the old file
+    mov     eax, 38
+    mov     ebx, new_path_buf
+    mov     ecx, exe_path_buf
+    int     0x80
+
+    test    eax, eax
+    js      .copy_error
+    jmp     .exit
 
 .copy_error:
     ; Close files then error
